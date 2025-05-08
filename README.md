@@ -14,7 +14,7 @@ There are two experiments presented here, each in their own notebook:
   
 ## Conclusion
 
-Both experiments are successful, with comparable results. While convolutional neural network reaches 91.37% accuracy, vision transformer reaches 89.53% accuracy.
+Both experiments are successful, with comparable results. While convolutional neural network reaches 91.37% accuracy, vision transformer reaches 89.53% accuracy, and 90.48% accuracy when using vanilla patching.
 
 ## References
 1. Multi-digit Number Recognition from Street View Imagery using Deep Convolutional Neural Networks: [link](https://arxiv.org/abs/1312.6082)
