@@ -404,3 +404,9 @@ processed_data/
 __pycache__/
 *.png
 *.h5
+svhn-cpp/build/
+resized-data
+*.jpg
+resized-data-*
+*.pth
+*.keras

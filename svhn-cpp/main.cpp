@@ -145,18 +145,6 @@ int main() {
                   << dataset.training_samples.size() << "\n";
 
     cout << "Defining classifier" << endl; 
-    
-    
-    /*Sequential model {
-        new Conv2D<ReLU>(64, 3, Kernel(3, 3), Padding::PADDING_SAME),
-        new BatchNormalization<4, 1>(Dims<1>(64)),
-??? from here until ???END lines may have been inserted/deleted
-        new MaxPooling2D(PoolSize(2, 2), Stride(2, 2), Padding::PADDING_SAME),
-        new Dropout<4>(0.2),
-        new Flatten<4>(),
-        new Dense<Softmax>(64*32*32, 10, false),
-    };*/
-
 
     // Define the model
     Sequential model;
