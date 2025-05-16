@@ -3,6 +3,7 @@
 #include <Eigen/Dense>
 #include <iostream>
 #include <iterator>
+#include <unistd.h>
 #include <flare/flare.hpp>
 #include <filesystem>
 #include <opencv2/opencv.hpp>
@@ -88,39 +89,30 @@ bool endsWith(const string& input, const string& query){
     }
 }
 
-void addConvLayer(Sequential& model, int filters, int strides, int kernel_size) {
-    model.Add(new Conv2D<ReLU>(
-        filters,                  // Number of filters
-        3,                        // Input channels (assume RGB images)
-        Kernel(kernel_size, kernel_size),
-        Padding::PADDING_SAME     // Same padding
-    ));
-
-    model.Add(new BatchNormalization<2, 1>(
-        Dims<1>(-1)               // Normalize over the channel dimension
-    ));
-
-    model.Add(new MaxPooling2D(
-        PoolSize(2, 2),           // Pooling size
-        Stride(strides, strides), // Strides
-        Padding::PADDING_SAME     // Same padding
-    ));
-
-    model.Add(new Dropout<4>(0.2)); // Dropout with 0.2 rate
-}
 
 int main() {
 
     cout << "Starting application" << endl;
 
-    cout << "Enter dataset location: ";
-    string path;
-    cin >> path;
+    // Define a buffer 
+    const size_t size = 1024; 
+    // Allocate a character array to store the directory path
+    char cwd[size];        
+    
+    // Call getcwd to get the current working directory and store it in buffer
+    if (getcwd(cwd, sizeof(cwd)) != NULL) {
+        printf("Current working dir: %s\n", cwd);
+        fs::path path(cwd);
 
-    // check if valid path
-    bool ret = endsWith(path, "/");
-    if (!ret){
-        path.append(string(1, fs::path::preferred_separator));
+        cout << path << endl;
+        path = path.parent_path().parent_path();
+
+        path /= "resized-data/train/";
+
+        cout << "Final path: " << path << endl;
+    } else {
+        perror("getcwd() error");
+        return 1;
     }
 
     Dataset dataset(Dims<3>(64, 64, 3), Dims<1>(10));
@@ -141,53 +133,72 @@ int main() {
         image = image / 255.0;
     }
 
-    cout << "Total number of batched samples: "
-                  << dataset.training_samples.size() << "\n";
+    cout << "Total number of batched samples: " << dataset.training_samples.size() << "\n";
 
     cout << "Defining classifier" << endl; 
 
     // Define the model
-    Sequential model;
+    Sequential model {
+        // Conv Block 1
+        new Conv2D<ReLU>(48, 3, Kernel(5, 5), Padding::PADDING_SAME),
+        new MaxPooling2D(PoolSize(2, 2), Padding::PADDING_SAME),
+        new Dropout<4>(0.2),
 
-    // Add convolutional layers
-    addConvLayer(model, 48, 2, 5);
-    addConvLayer(model, 64, 1, 5);
-    addConvLayer(model, 128, 2, 5);
-    addConvLayer(model, 160, 1, 5);
-    addConvLayer(model, 192, 2, 5);
-    addConvLayer(model, 192, 1, 5);
-    addConvLayer(model, 192, 2, 5);
-    addConvLayer(model, 192, 1, 5);
+        // Conv Block 2
+        new Conv2D<ReLU>(64, 48, Kernel(5, 5), Padding::PADDING_SAME),
+        new MaxPooling2D(PoolSize(2, 2), Padding::PADDING_SAME),
+        new Dropout<4>(0.2),
 
-    // Add dense layers
-    model.Add(new Flatten<4>()); // Flatten input
-    model.Add(new Dense<Linear>(3072, 3072)); // Fully connected layer
-    model.Add(new Dense<Linear>(3072, 3072)); // Another dense layer
+        // Conv Block 3
+        new Conv2D<ReLU>(128, 64, Kernel(5, 5), Padding::PADDING_SAME),
+        new MaxPooling2D(PoolSize(2, 2), Padding::PADDING_SAME),
+        new Dropout<4>(0.2),
 
-    // Final output layer with softmax activation
-    model.Add(new Dense<Softmax>(3072, 10));
+        // Conv Block 4
+        new Conv2D<ReLU>(160, 128, Kernel(5, 5), Padding::PADDING_SAME),
+        new MaxPooling2D(PoolSize(2, 2), Padding::PADDING_SAME),
+        new Dropout<4>(0.2),
 
-    // Assuming you have input data `x` with shape (batch_size, 64, 64, 3)
-    Tensor<4> x(/* shape= */ 64, 64, 3, /* batch_size= */ 1);
-    Tensor<2> y = model.Forward(x); // Perform forward pass
+        // Conv Block 5
+        new Conv2D<ReLU>(192, 160, Kernel(5, 5), Padding::PADDING_SAME),
+        new MaxPooling2D(PoolSize(2, 2), Padding::PADDING_SAME),
+        new Dropout<4>(0.2),
 
-    cout << "Output shape: " << y.Shape() << endl;
+        // Conv Block 6
+        new Conv2D<ReLU>(192, 192, Kernel(5, 5), Padding::PADDING_SAME),
+        new MaxPooling2D(PoolSize(2, 2), Padding::PADDING_SAME),
+        new Dropout<4>(0.2),
+
+        // Conv Block 7
+        new Conv2D<ReLU>(192, 192, Kernel(5, 5), Padding::PADDING_SAME),
+        new MaxPooling2D(PoolSize(2, 2), Padding::PADDING_SAME),
+        new Dropout<4>(0.2),
+
+        // Conv Block 8
+        new Conv2D<ReLU>(192, 192, Kernel(5, 5), Padding::PADDING_SAME),
+        new MaxPooling2D(PoolSize(2, 2), Padding::PADDING_SAME),
+        new Dropout<4>(0.2),
+
+        // Dense Layers
+        new Flatten<4>(),
+        new Dense<ReLU>(192, 3072, false),
+        new Dense<ReLU>(3072, 3072, false),
+        new Dense<Softmax>(3072, 10, false)
+    };
+    cout << "classifier defined" << endl;
 
     CategoricalCrossEntropy<2> loss;
     Adam opt;
 
     model.Fit(dataset.training_samples, dataset.training_labels, 15, loss, opt);
 
-
     cout << model.Predict<2>(dataset.training_samples.front()) << "\nexpect\n"
                 << dataset.training_labels.front() << "\n";
     cout << model.Predict<2>(dataset.training_samples.back()) << "\nexpect\n"
                 << dataset.training_labels.back() << "\n\n";
 
-
-    saveModel(model, "model.flr");
-    cout << "saved trained model" << endl;
+    saveModel(model, "classifier.flr");
+    cout << "Saved trained model" << endl;
     
     return 0;
 }
-???END
