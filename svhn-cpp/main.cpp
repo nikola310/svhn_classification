@@ -60,6 +60,7 @@ void loadModel(fl::Sequential& model, const string& filename) {
                 cerr << "Error loading layer " << i << ": " << e.what() << endl;
             }
         }
+        
     }
 
     file.close();
@@ -84,7 +85,7 @@ bool getBoolFromUser(const string& questionString){
 bool endsWith(const string& input, const string& query){
     if (input.length() >= query.length()){
         return input.substr(input.length() - query.length()) == query;
-    }else{
+    } else {
         return false;
     }
 }
@@ -98,31 +99,31 @@ int main() {
     const size_t size = 1024; 
     // Allocate a character array to store the directory path
     char cwd[size];        
-    
+    fs::path path;
     // Call getcwd to get the current working directory and store it in buffer
     if (getcwd(cwd, sizeof(cwd)) != NULL) {
-        printf("Current working dir: %s\n", cwd);
-        fs::path path(cwd);
+        path = fs::path(cwd);
 
         cout << path << endl;
         path = path.parent_path().parent_path();
 
-        path /= "resized-data/train/";
+        path /= "resized-data";
+        path /= "train";
 
-        cout << "Final path: " << path << endl;
+        cout << "Dataset path is " << path << endl;
     } else {
         perror("getcwd() error");
         return 1;
     }
 
-    Dataset dataset(Dims<3>(64, 64, 3), Dims<1>(10));
+    Dataset dataset(Dims<3>(32, 32, 3), Dims<1>(10));
 
     for (int i = 0; i < 10; i++) {
         Tensor<1> label(10);
         label.setZero();
         label(i) = 1;
 
-        for (const auto &entry: fs::directory_iterator(path + to_string(i))) {
+        for (const auto &entry: fs::directory_iterator(path / to_string(i))) {
             dataset.Add(entry.path(), label);
         }
     }
@@ -185,20 +186,20 @@ int main() {
         new Dense<ReLU>(3072, 3072, false),
         new Dense<Softmax>(3072, 10, false)
     };
-    cout << "classifier defined" << endl;
+    cout << "Classifier defined" << endl;
 
     CategoricalCrossEntropy<2> loss;
     Adam opt;
-
+    cout << "Training started" << endl;
     model.Fit(dataset.training_samples, dataset.training_labels, 15, loss, opt);
-
+    cout << "Training over!" << endl;
     cout << model.Predict<2>(dataset.training_samples.front()) << "\nexpect\n"
-                << dataset.training_labels.front() << "\n";
+                << dataset.training_labels.front() << "\n\n";
     cout << model.Predict<2>(dataset.training_samples.back()) << "\nexpect\n"
                 << dataset.training_labels.back() << "\n\n";
 
     saveModel(model, "classifier.flr");
-    cout << "Saved trained model" << endl;
-    
+    cout << "Training model saved!" << endl;
+    cout << "Program finished" << endl;
     return 0;
 }
